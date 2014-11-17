@@ -42,7 +42,7 @@ void k64f_init_eth_hardware(void)
 
     /* Disable the mpu*/
     BW_MPU_CESR_VLD(MPU_BASE, 0);
-    
+
     /* Open POTR clock gate*/
     for (count = 0; count < HW_PORT_INSTANCE_COUNT; count++)
     {
@@ -62,7 +62,7 @@ void k64f_init_eth_hardware(void)
     // Added for FRDM-K64F
     PORT_HAL_SetPullMode(PORTB_BASE, 0, kPortPullUp);
     PORT_HAL_SetPullCmd(PORTB_BASE, 0, true);
-  
+
     PORT_HAL_SetMuxMode(PORTB_BASE, 1, kPortMuxAlt4);
     /* Configure GPIO for MII interface */
     PORT_HAL_SetMuxMode(PORTA_BASE, 9, kPortMuxAlt4);   /*!< ENET MII0_RXD3*/

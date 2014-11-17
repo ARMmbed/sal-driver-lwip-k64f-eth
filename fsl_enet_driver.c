@@ -77,7 +77,7 @@ const enet_mac_api_t g_enetMacApi =
 uint32_t enet_mii_read(uint32_t instance, uint32_t phyAddr, uint32_t phyReg, uint32_t *dataPtr)
 {
     uint32_t  counter;
-	
+
     /* Check the input parameters*/
     if (!dataPtr)
     {
@@ -117,7 +117,7 @@ uint32_t enet_mii_read(uint32_t instance, uint32_t phyAddr, uint32_t phyReg, uin
 
     /* Clear MII interrupt event*/
     enet_hal_clear_interrupt(instance, kEnetMiiInterrupt);
-	
+
     return kStatus_ENET_Success;
 }
 
@@ -163,7 +163,7 @@ uint32_t enet_mii_write(uint32_t instance, uint32_t phyAddr, uint32_t phyReg, ui
 
     /* Clear MII intrrupt event*/
     enet_hal_clear_interrupt(instance, kEnetMiiInterrupt);
-	
+
     return kStatus_ENET_Success;
 }
 /*FUNCTION****************************************************************
@@ -175,7 +175,7 @@ uint32_t enet_mii_write(uint32_t instance, uint32_t phyAddr, uint32_t phyReg, ui
 uint32_t enet_mac_mii_init(enet_dev_if_t * enetIfPtr)
 {
     uint32_t frequency;
-	
+
     /* Check the input parameters*/
     if (enetIfPtr == NULL)
     {
@@ -212,13 +212,13 @@ uint32_t enet_mac_rxbd_init(enet_dev_if_t * enetIfPtr, enet_rxbd_config_t *rxbdC
 
     /* Initialize the bd status*/
     enetIfPtr->macContextPtr->isRxFull = false;
-		
+
     /* Initialize receive bd base address and current address*/
     enetIfPtr->macContextPtr->rxBdBasePtr = rxbdCfg->rxBdPtrAlign;
     enetIfPtr->macContextPtr->rxBdCurPtr = enetIfPtr->macContextPtr->rxBdBasePtr;
     enetIfPtr->macContextPtr->rxBdDirtyPtr = enetIfPtr->macContextPtr->rxBdBasePtr;
     enet_hal_set_rxbd_address(enetIfPtr->deviceNumber, (uint32_t)(enetIfPtr->macContextPtr->rxBdBasePtr));
-	
+
     return kStatus_ENET_Success;
 }
 
@@ -258,13 +258,13 @@ uint32_t enet_mac_configure_fifo_accel(enet_dev_if_t * enetIfPtr)
 {
     enet_config_rx_fifo_t rxFifo;
     enet_config_tx_fifo_t txFifo;
-	
+
     /* Check the input parameters*/
     if (!enetIfPtr)
     {
         return kStatus_ENET_InvalidInput;
     }
-		
+
 		/* Initialize values that will not be initialized later on */
     rxFifo.rxEmpty = 0;
     rxFifo.rxFull = 0;
@@ -306,7 +306,7 @@ uint32_t enet_mac_configure_fifo_accel(enet_dev_if_t * enetIfPtr)
 		      TFWR = 15 means transmission will begin once 960 bytes has been written to the Tx FIFO (for frames larger than 960 bytes)
           See Section 45.4.18 - Transmit FIFO Watermark Register of the K64F Reference Manual for details		*/
           txFifo.txFifoWrite = 15;
-		
+
     /* Configure tx/rx FIFO with default value*/
     rxFifo.rxAlmostEmpty = 4;
     rxFifo.rxAlmostFull = 4;
@@ -385,7 +385,7 @@ uint32_t enet_mac_init(enet_dev_if_t * enetIfPtr, enet_rxbd_config_t *rxbdCfg,
 {
     uint32_t timeOut = 0;
     uint32_t devNumber, result = 0;
-	
+
     /* Check the input parameters*/
     if (enetIfPtr == NULL)
     {
@@ -414,11 +414,11 @@ uint32_t enet_mac_init(enet_dev_if_t * enetIfPtr, enet_rxbd_config_t *rxbdCfg,
     {
         return kStatus_ENET_TimeOut;
     }
-	
+
     /* Disable all ENET mac interrupt and Clear all interrupt events*/
     enet_hal_config_interrupt(devNumber, kEnetAllInterrupt, false);
     enet_hal_clear_interrupt(devNumber, kEnetAllInterrupt);
-	
+
     /* Program this station's physical address*/
     enet_hal_set_mac_address(devNumber, enetIfPtr->macCfgPtr->macAddr);
 
@@ -459,7 +459,7 @@ uint32_t enet_mac_init(enet_dev_if_t * enetIfPtr, enet_rxbd_config_t *rxbdCfg,
     {
         return result;
     }
-    
+
     return kStatus_ENET_Success;
 }
 

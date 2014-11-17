@@ -55,7 +55,7 @@ struct k64f_enetdata {
 static struct k64f_enetdata k64f_enetdata;
 
 static enet_dev_if_t enetDevIf[HW_ENET_INSTANCE_COUNT];
-static enet_mac_config_t g_enetMacCfg[HW_ENET_INSTANCE_COUNT] = 
+static enet_mac_config_t g_enetMacCfg[HW_ENET_INSTANCE_COUNT] =
 {
   {
     ENET_ETH_MAX_FLEN ,  /*!< enet receive buffer size*/
@@ -105,10 +105,6 @@ static enet_phy_config_t g_enetPhyCfg[HW_ENET_INSTANCE_COUNT] =
  * so use it only for debug. */
 //#define LOCK_RX_THREAD
 
-/** \brief  Signal used for ethernet ISR to signal packet_rx() thread.
- */
-#define RX_SIGNAL  1
-
 // K64F-specific macros
 #define RX_PBUF_AUTO_INDEX    (-1)
 
@@ -120,7 +116,7 @@ static enet_phy_config_t g_enetPhyCfg[HW_ENET_INSTANCE_COUNT] =
  *
  *  \param[in] k64f_enet Pointer to the drvier data structure
  *  \param[in] p         Pointer to pbuf to queue
- *  \param[in] bidx      Index to queue into   
+ *  \param[in] bidx      Index to queue into
  */
 static void k64f_rxqueue_pbuf(struct k64f_enetdata *k64f_enet, struct pbuf *p, int bidx)
 {
@@ -184,7 +180,7 @@ s32_t k64f_rx_queue(struct netif *netif, int idx)
        a data structure which is internal to lwIP. This might not prove to be a good idea
        in the long run, but a better fix would probably involve modifying lwIP itself */
     p->payload = (void*)ENET_ALIGN((uint32_t)p->payload, RX_BUF_ALIGNMENT);
-    
+
     /* pbufs allocated from the RAM pool should be non-chained. */
     LWIP_ASSERT("k64f_rx_queue: pbuf is not contiguous (chained)", pbuf_clen(p) <= 1);
 
@@ -203,7 +199,7 @@ s32_t k64f_rx_queue(struct netif *netif, int idx)
  *  \param[in]  netif  Pointer to driver data structure
  *  \returns           ERR_MEM if out of memory, ERR_OK otherwise
  */
-static err_t k64f_rx_setup(struct netif *netif, enet_rxbd_config_t *rxbdCfg) {   
+static err_t k64f_rx_setup(struct netif *netif, enet_rxbd_config_t *rxbdCfg) {
   struct k64f_enetdata *k64f_enet = netif->state;
   enet_dev_if_t *enetIfPtr = (enet_dev_if_t *)&enetDevIf[BOARD_DEBUG_ENET_INSTANCE];
   uint8_t *rxBdPtr;
@@ -222,7 +218,7 @@ static err_t k64f_rx_setup(struct netif *netif, enet_rxbd_config_t *rxbdCfg) {
   rxbdCfg->rxBdPtrAlign = k64f_enet->rx_desc_start_addr;
   rxbdCfg->rxBdNum = enetIfPtr->macCfgPtr->rxBdNumber;
   rxbdCfg->rxBufferNum = enetIfPtr->macCfgPtr->rxBdNumber;
-  
+
   k64f_rx_queue(netif, RX_PBUF_AUTO_INDEX);
   return ERR_OK;
 }
@@ -303,7 +299,7 @@ static err_t low_level_init(struct netif *netif)
   enet_phy_duplex_t phy_duplex;
 
   k64f_init_eth_hardware();
-  
+
   /* Initialize device*/
   enetIfPtr = (enet_dev_if_t *)&enetDevIf[BOARD_DEBUG_ENET_INSTANCE];
   enetIfPtr->deviceNumber = device;
@@ -448,7 +444,7 @@ static struct pbuf *k64f_low_level_input(struct netif *netif, int idx)
     /* Free pbuf from descriptor */
     k64f_enet->rxb[idx] = NULL;
     k64f_enet->rx_free_descs++;
-    
+
     /* Attempt to queue new buffer */
     if (k64f_rx_queue(netif, idx) == 0) {
       /* Drop frame (out of memory) */
@@ -601,7 +597,7 @@ s32_t k64f_tx_ready(struct netif *netif)
 void k64f_update_txbds(struct k64f_enetdata *k64f_enet, int idx, uint8_t *buffer, uint16_t length, bool isLast)
 {
   volatile enet_bd_struct_t * bdPtr = (enet_bd_struct_t *)(k64f_enet->tx_desc_start_addr + idx * enet_hal_get_bd_size());
-    
+
   bdPtr->length = HTONS(length); /* Set data length*/
   bdPtr->buffer = (uint8_t *)HTONL((uint32_t)buffer); /* Set data buffer*/
   if (isLast)
@@ -631,7 +627,7 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
 
   /* Get free TX buffer index */
   idx = k64f_enet->tx_produce_index;
-  
+
   /* Check the pbuf chain for payloads that are not 8-byte aligned.
      If found, a new properly aligned buffer needs to be allocated
      and the data copied there */
@@ -642,7 +638,7 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
     // Allocate properly aligned buffer
     psend = (uint8_t*)malloc(p->tot_len);
     if (NULL == psend)
-      return ERR_MEM;   
+      return ERR_MEM;
     LWIP_ASSERT("k64f_low_level_output: buffer not properly aligned", ((u32_t)psend & (TX_BUF_ALIGNMENT - 1)) == 0);
     for (q = p, dst = psend; q != NULL; q = q->next) {
       MEMCPY(dst, q->payload, q->len);
@@ -671,10 +667,10 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
     if (psend != NULL) {
       k64f_update_txbds(k64f_enet, idx, psend, p->tot_len, 1);
       k64f_enet->txb[idx] = NULL;
-      
+
       LWIP_DEBUGF(UDP_LPC_EMAC | LWIP_DBG_TRACE,
       ("k64f_low_level_output: aligned packet(%p) sent"
-      " size = %d (index=%d)\n", psend, p->tot_len, idx));      
+      " size = %d (index=%d)\n", psend, p->tot_len, idx));
     } else {
       LWIP_ASSERT("k64f_low_level_output: buffer not properly aligned", ((u32_t)q->payload & 0x07) == 0);
 
@@ -689,7 +685,7 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
         k64f_update_txbds(k64f_enet, idx, q->payload, q->len, 0);
         k64f_enet->txb[idx] = NULL;
       }
-      
+
       LWIP_DEBUGF(UDP_LPC_EMAC | LWIP_DBG_TRACE,
       ("k64f_low_level_output: pbuf packet(%p) sent, chain#=%d,"
       " size = %d (index=%d)\n", q->payload, dn, q->len, idx));
