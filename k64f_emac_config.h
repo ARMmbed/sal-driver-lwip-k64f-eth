@@ -33,7 +33,7 @@
 #define ENET_RX_RING_LEN              (16)
 #define ENET_TX_RING_LEN              (8)
 #define ENET_RX_LARGE_BUFFER_NUM      (0)
-#define ENET_RX_BUFFER_ALIGNMENT      (16)  
+#define ENET_RX_BUFFER_ALIGNMENT      (16)
 #define ENET_TX_BUFFER_ALIGNMENT      (16)
 #define ENET_BD_ALIGNMENT             (16)
 #define ENET_MII_CLOCK                (2500000L)

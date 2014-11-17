@@ -38,10 +38,6 @@ extern void k64f_init_eth_hardware(void);
 /* K64F EMAC driver data structure */
 struct k64f_enetdata {
   struct netif *netif;  /**< Reference back to LWIP parent netif */
-  sys_sem_t RxReadySem; /**< RX packet ready semaphore */
-  sys_sem_t TxCleanSem; /**< TX cleanup thread wakeup semaphore */
-  sys_mutex_t TXLockMutex; /**< TX critical section mutex */
-  sys_sem_t xTXDCountSem; /**< TX free buffer counting semaphore */
   volatile u32_t rx_free_descs; /**< Count of free RX descriptors */
   struct pbuf *rxb[ENET_RX_RING_LEN]; /**< RX pbuf pointer list, zero-copy mode */
   uint8_t *rx_desc_start_addr; /**< RX descriptor start address */
@@ -275,7 +271,6 @@ static void k64f_tx_reclaim(struct k64f_enetdata *k64f_enet)
         pbuf_free(k64f_enet->txb[i]);
         k64f_enet->txb[i] = NULL;
       }
-      osSemaphoreRelease(k64f_enet->xTXDCountSem.id);
       bdPtr[i].controlExtend2 &= ~TX_DESC_UPDATED_MASK;
       i = (i + 1) % ENET_TX_RING_LEN;
   }
@@ -654,8 +649,9 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
 
   /* Wait until enough descriptors are available for the transfer. */
   /* THIS WILL BLOCK UNTIL THERE ARE ENOUGH DESCRIPTORS AVAILABLE */
-  while (dn > k64f_tx_ready(netif))
-    osSemaphoreWait(k64f_enet->xTXDCountSem.id, osWaitForever);
+  // TODO: exit with "out of memory" error ?
+  // while (dn > k64f_tx_ready(netif))
+  //   osSemaphoreWait(k64f_enet->xTXDCountSem.id, osWaitForever);
 
   /* Get exclusive access */
   sys_mutex_lock(&k64f_enet->TXLockMutex);
@@ -734,29 +730,32 @@ static void k64f_phy_task(void *data) {
   PHY_STATE prev_state;
 
   prev_state = crt_state;
-  while (true) {
-    // Get current status
-    phy_get_link_status(enetIfPtr, &connection_status);
-    crt_state.connected = connection_status ? 1 : 0;
-    phy_get_link_speed(enetIfPtr, &crt_state.speed);
-    phy_get_link_duplex(enetIfPtr, &crt_state.duplex);
+  // TODO: this can't be an infinite loop anymore. Events, people. Give me events. WHERE ARE MY EVENTS ??!!!
+  // TODO: maybe this should also be called from the Ethernet interrupt handler ? (probably not thouogh, since the interrupt
+  //       handler doesn't seem to have a PHY-related source (but check this!))
+  // while (true) {
+  //   // Get current status
+  //   phy_get_link_status(enetIfPtr, &connection_status);
+  //   crt_state.connected = connection_status ? 1 : 0;
+  //   phy_get_link_speed(enetIfPtr, &crt_state.speed);
+  //   phy_get_link_duplex(enetIfPtr, &crt_state.duplex);
 
-    // Compare with previous state
-    if (crt_state.connected != prev_state.connected) {
-      if (crt_state.connected)
-        tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_up, (void*) netif, 1);
-      else
-        tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_down, (void*) netif, 1);
-    }
+  //   // Compare with previous state
+  //   if (crt_state.connected != prev_state.connected) {
+  //     if (crt_state.connected)
+  //       tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_up, (void*) netif, 1);
+  //     else
+  //       tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_down, (void*) netif, 1);
+  //   }
 
-    if (crt_state.speed != prev_state.speed)
-      BW_ENET_RCR_RMII_10T(enetIfPtr->deviceNumber, crt_state.speed == kEnetSpeed10M ? kEnetCfgSpeed10M : kEnetCfgSpeed100M);
+  //   if (crt_state.speed != prev_state.speed)
+  //     BW_ENET_RCR_RMII_10T(enetIfPtr->deviceNumber, crt_state.speed == kEnetSpeed10M ? kEnetCfgSpeed10M : kEnetCfgSpeed100M);
 
-    // TODO: duplex change requires disable/enable of Ethernet interface, to be implemented
+  //   // TODO: duplex change requires disable/enable of Ethernet interface, to be implemented
 
-    prev_state = crt_state;
-    osDelay(PHY_TASK_PERIOD_MS);
-  }
+  //   prev_state = crt_state;
+  //   osDelay(PHY_TASK_PERIOD_MS);
+  // }
 }
 
 /**
@@ -816,31 +815,9 @@ err_t eth_arch_enetif_init(struct netif *netif)
   netif->linkoutput = k64f_low_level_output;
 
   /* CMSIS-RTOS, start tasks */
-#ifdef CMSIS_OS_RTX
-  memset(k64f_enetdata.xTXDCountSem.data, 0, sizeof(k64f_enetdata.xTXDCountSem.data));
-  k64f_enetdata.xTXDCountSem.def.semaphore = k64f_enetdata.xTXDCountSem.data;
-#endif
-  k64f_enetdata.xTXDCountSem.id = osSemaphoreCreate(&k64f_enetdata.xTXDCountSem.def, ENET_TX_RING_LEN);
-
-  LWIP_ASSERT("xTXDCountSem creation error", (k64f_enetdata.xTXDCountSem.id != NULL));
-
-  err = sys_mutex_new(&k64f_enetdata.TXLockMutex);
-  LWIP_ASSERT("TXLockMutex creation error", (err == ERR_OK));
-
-  /* Packet receive task */
-  err = sys_sem_new(&k64f_enetdata.RxReadySem, 0);
-  LWIP_ASSERT("RxReadySem creation error", (err == ERR_OK));
-  sys_thread_new("receive_thread", packet_rx, netif->state, DEFAULT_THREAD_STACKSIZE, RX_PRIORITY);
-
-  /* Transmit cleanup task */
-  err = sys_sem_new(&k64f_enetdata.TxCleanSem, 0);
-  LWIP_ASSERT("TxCleanSem creation error", (err == ERR_OK));
-  sys_thread_new("txclean_thread", packet_tx, netif->state, DEFAULT_THREAD_STACKSIZE, TX_PRIORITY);
-
-  /* PHY monitoring task */
-  sys_thread_new("phy_thread", k64f_phy_task, netif, DEFAULT_THREAD_STACKSIZE, PHY_PRIORITY);
 
   /* Allow the PHY task to detect the initial link state and set up the proper flags */
+  // TODO: is this needed anymore? PRobably, but maybe putting it in EthernetInterface.cpp is a better idea
   osDelay(10);
 
   return ERR_OK;
