@@ -36,6 +36,7 @@ extern void *enetIfHandle;
 // out what actually triggered the interrupt.
 
 static volatile uint8_t emac_timer_fired;
+volatile uint8_t allow_net_callbacks;
 
 /********************************************************************************
  * Internal data
@@ -98,16 +99,6 @@ static enet_phy_config_t g_enetPhyCfg[HW_ENET_INSTANCE_COUNT] =
 #define RX_PRIORITY   (osPriorityNormal)
 #define TX_PRIORITY   (osPriorityNormal)
 #define PHY_PRIORITY  (osPriorityNormal)
-
-/** \brief  Debug output formatter lock define
- *
- * When using FreeRTOS and with LWIP_DEBUG enabled, enabling this
- * define will allow RX debug messages to not interleave with the
- * TX messages (so they are actually readable). Not enabling this
- * define when the system is under load will cause the output to
- * be unreadable. There is a small tradeoff in performance for this
- * so use it only for debug. */
-//#define LOCK_RX_THREAD
 
 // K64F-specific macros
 #define RX_PBUF_AUTO_INDEX    (-1)
@@ -266,9 +257,6 @@ static void k64f_tx_reclaim(struct k64f_enetdata *k64f_enet)
   uint8_t i;
   volatile enet_bd_struct_t * bdPtr = (enet_bd_struct_t *)k64f_enet->tx_desc_start_addr;
 
-  /* Get exclusive access */
-  sys_mutex_lock(&k64f_enet->TXLockMutex);
-
   // Traverse all descriptors, looking for the ones modified by the uDMA
   i = k64f_enet->tx_consume_index;
   while(i != k64f_enet->tx_produce_index && !(bdPtr[i].control & kEnetTxBdReady)) {
@@ -283,9 +271,6 @@ static void k64f_tx_reclaim(struct k64f_enetdata *k64f_enet)
       i = (i + 1) % ENET_TX_RING_LEN;
   }
   k64f_enet->tx_consume_index = i;
-
-  /* Restore access */
-  sys_mutex_unlock(&k64f_enet->TXLockMutex);
 }
 
 /** \brief  Low level init of the MAC and PHY.
@@ -396,11 +381,6 @@ static struct pbuf *k64f_low_level_input(struct netif *netif, int idx)
   u32_t length = 0, orig_length;
   const u16_t err_mask = kEnetRxBdTrunc | kEnetRxBdCrc | kEnetRxBdNoOctet | kEnetRxBdLengthViolation;
 
-#ifdef LOCK_RX_THREAD
-  /* Get exclusive access */
-  sys_mutex_lock(&k64f_enet->TXLockMutex);
-#endif
-
   /* Determine if a frame has been received */
   if ((bdPtr[idx].control & err_mask) != 0) {
 #if LINK_STATS
@@ -442,9 +422,6 @@ static struct pbuf *k64f_low_level_input(struct netif *netif, int idx)
       LWIP_DEBUGF(UDP_LPC_EMAC | LWIP_DBG_TRACE,
         ("k64f_low_level_input: Packet index %d dropped for OOM\n",
         idx));
-#ifdef LOCK_RX_THREAD
-      sys_mutex_unlock(&k64f_enet->TXLockMutex);
-#endif
 
       return NULL;
     }
@@ -457,10 +434,6 @@ static struct pbuf *k64f_low_level_input(struct netif *netif, int idx)
     p->tot_len = (u16_t) length;
     LINK_STATS_INC(link.recv);
   }
-
-#ifdef LOCK_RX_THREAD
-  sys_mutex_unlock(&k64f_enet->TXLockMutex);
-#endif
 
   return p;
 }
@@ -477,8 +450,9 @@ void k64f_enetif_input(struct netif *netif, int idx)
 
   /* move received packet into a new pbuf */
   p = k64f_low_level_input(netif, idx);
-  if (p == NULL)
+  if (p == NULL) {
     return;
+  }
 
   /* points to packet payload, which starts with an Ethernet header */
   ethhdr = (struct eth_hdr*)p->payload;
@@ -600,10 +574,8 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
   // TODO: exit with "out of memory" error ?
   // while (dn > k64f_tx_ready(netif))
   //   osSemaphoreWait(k64f_enet->xTXDCountSem.id, osWaitForever);
-
-  /* Get exclusive access */
-  sys_mutex_lock(&k64f_enet->TXLockMutex);
-
+  if (dn > k64f_tx_ready(netif))
+     printf("/////////////////////////////////////////////////////////////////////\n");
   /* Setup transfers */
   q = p;
   while (dn > 0) {
@@ -643,9 +615,6 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
   k64f_enet->tx_produce_index = idx;
   enet_hal_active_txbd(BOARD_DEBUG_ENET_INSTANCE_ADDR);
   LINK_STATS_INC(link.xmit);
-
-  /* Restore access */
-  sys_mutex_unlock(&k64f_enet->TXLockMutex);
 
   return ERR_OK;
 }
@@ -734,6 +703,9 @@ err_t eth_arch_enetif_init(struct netif *netif)
 
   k64f_enetdata.netif = netif;
 
+  // The initialization code uses osDelay, so timers neet to run
+  SysTick_Init();
+
   /* set MAC hardware address */
 #if (MBED_MAC_ADDRESS_SUM != MBED_MAC_ADDR_INTERFACE)
   netif->hwaddr[0] = MBED_MAC_ADDR_0;
@@ -768,10 +740,8 @@ err_t eth_arch_enetif_init(struct netif *netif)
   netif->name[0] = 'e';
   netif->name[1] = 'n';
 
-  netif->output = k64f_etharp_output;
+  netif->output = /*k64f_*/etharp_output;
   netif->linkoutput = k64f_low_level_output;
-
-  SysTick_Init();
 
   return ERR_OK;
 }
@@ -828,8 +798,10 @@ void ENET_1588_Timer_IRQHandler(void)
 
 // This one gets called from the SysTick interrupt handler (sys_arch.c)
 void eth_arch_timer_callback(void) {
-    emac_timer_fired = 1;
-    NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+    if (allow_net_callbacks) {
+        emac_timer_fired = 1;
+        NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+    }
 }
 
 void ENET_Transmit_IRQHandler(void) {
@@ -844,13 +816,13 @@ void ENET_Receive_IRQHandler(void) {
     if (enet_hal_get_interrupt_status(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetTxFrameInterrupt))
         enet_mac_tx_isr(enetIfHandle);
     if (emac_timer_fired) {
-        emac_timer_fired = 0;
-        sys_check_timeouts();
           // TODO: this will have to be replaced with a proper "PHY task" that can detect changes in link status.
         if (k64f_phy_state.connected == STATE_UNKNOWN) {
             k64f_phy_state.connected = 1;
             netif_set_link_up(k64f_enetdata.netif);
         }
+        emac_timer_fired = 0;
+        sys_check_timeouts();
      }
 }
 
