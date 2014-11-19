@@ -6,6 +6,8 @@
 #include "lwip/stats.h"
 #include "lwip/snmp.h"
 #include "lwip/tcpip.h"
+#include "lwip/dhcp.h"
+#include "lwip/timers.h"
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
@@ -24,10 +26,16 @@
 #include <stdlib.h>
 
 #include "mbed_interface.h"
+#include "cmsis.h"
 
 extern IRQn_Type enet_irq_ids[HW_ENET_INSTANCE_COUNT][FSL_FEATURE_ENET_INTERRUPT_COUNT];
 extern uint8_t enetIntMap[kEnetIntNum];
 extern void *enetIfHandle;
+
+// Fow now, all interrupt handling happens inside one single handler, so we need to figure
+// out what actually triggered the interrupt.
+
+static volatile uint8_t emac_timer_fired;
 
 /********************************************************************************
  * Internal data
@@ -356,24 +364,6 @@ static err_t low_level_init(struct netif *netif)
  * LWIP port
  ********************************************************************************/
 
-/** \brief Ethernet receive interrupt handler
- *
- *  This function handles the receive interrupt of K64F.
- */
-void enet_mac_rx_isr(void *enetIfPtr)
-{
-  /* Clear interrupt */
-  enet_hal_clear_interrupt(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetRxFrameInterrupt);
-  sys_sem_signal(&k64f_enetdata.RxReadySem);
-}
-
-void enet_mac_tx_isr(void *enetIfPtr)
-{
-  /*Clear interrupt*/
-  enet_hal_clear_interrupt(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetTxFrameInterrupt);
-  sys_sem_signal(&k64f_enetdata.TxCleanSem);
-}
-
 /**
  * This function is the ethernet packet send function. It calls
  * etharp_output after checking link status.
@@ -512,48 +502,6 @@ void k64f_enetif_input(struct netif *netif, int idx)
       /* Return buffer */
       pbuf_free(p);
       break;
-  }
-}
-
-/** \brief  Packet reception task
- *
- * This task is called when a packet is received. It will
- * pass the packet to the LWIP core.
- *
- *  \param[in] pvParameters pointer to the interface data
- */
-static void packet_rx(void* pvParameters) {
-  struct k64f_enetdata *k64f_enet = pvParameters;
-  volatile enet_bd_struct_t * bdPtr = (enet_bd_struct_t*)k64f_enet->rx_desc_start_addr;
-  int idx = 0;
-
-  while (1) {
-    /* Wait for receive task to wakeup */
-    sys_arch_sem_wait(&k64f_enet->RxReadySem, 0);
-
-    if ((bdPtr[idx].control & kEnetRxBdEmpty) == 0) {
-      k64f_enetif_input(k64f_enet->netif, idx);
-      idx = (idx + 1) % ENET_RX_RING_LEN;
-    }
-  }
-}
-
-/** \brief  Transmit cleanup task
- *
- * This task is called when a transmit interrupt occurs and
- * reclaims the pbuf and descriptor used for the packet once
- * the packet has been transferred.
- *
- *  \param[in] pvParameters pointer to the interface data
- */
-static void packet_tx(void* pvParameters) {
-  struct k64f_enetdata *k64f_enet = pvParameters;
-
-  while (1) {
-    /* Wait for transmit cleanup task to wakeup */
-    sys_arch_sem_wait(&k64f_enet->TxCleanSem, 0);
-    // TODOETH: handle TX underrun?
-    k64f_tx_reclaim(k64f_enet);
   }
 }
 
@@ -715,6 +663,9 @@ typedef struct {
     enet_phy_duplex_t duplex;
 } PHY_STATE;
 
+static PHY_STATE k64f_phy_state = {STATE_UNKNOWN, (enet_phy_speed_t)STATE_UNKNOWN, (enet_phy_duplex_t)STATE_UNKNOWN};
+
+#if 0
 int phy_link_status() {
     bool connection_status;
     enet_dev_if_t * enetIfPtr = (enet_dev_if_t*)&enetDevIf[BOARD_DEBUG_ENET_INSTANCE];
@@ -730,33 +681,39 @@ static void k64f_phy_task(void *data) {
   PHY_STATE prev_state;
 
   prev_state = crt_state;
-  // TODO: this can't be an infinite loop anymore. Events, people. Give me events. WHERE ARE MY EVENTS ??!!!
+
+  // TODO: this can't be an infinite loop anymore. Events, people. Give me events. WHERE ARE MY EVENTS ?!
   // TODO: maybe this should also be called from the Ethernet interrupt handler ? (probably not thouogh, since the interrupt
   //       handler doesn't seem to have a PHY-related source (but check this!))
-  // while (true) {
-  //   // Get current status
-  //   phy_get_link_status(enetIfPtr, &connection_status);
-  //   crt_state.connected = connection_status ? 1 : 0;
-  //   phy_get_link_speed(enetIfPtr, &crt_state.speed);
-  //   phy_get_link_duplex(enetIfPtr, &crt_state.duplex);
+  // TODO: +--> what actually happens is that the requests to read/write PHY registers via the MII interface should be
+  //       asynchronous (and their completion can generate an interrupt), so completely ignore this for now and assume
+  //       that the Ethernet cable is always connected and the link speed never changes. Yuck.
 
-  //   // Compare with previous state
-  //   if (crt_state.connected != prev_state.connected) {
-  //     if (crt_state.connected)
-  //       tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_up, (void*) netif, 1);
-  //     else
-  //       tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_down, (void*) netif, 1);
-  //   }
+  while (true) {
+    // Get current status
+    phy_get_link_status(enetIfPtr, &connection_status);
+    crt_state.connected = connection_status ? 1 : 0;
+    phy_get_link_speed(enetIfPtr, &crt_state.speed);
+    phy_get_link_duplex(enetIfPtr, &crt_state.duplex);
 
-  //   if (crt_state.speed != prev_state.speed)
-  //     BW_ENET_RCR_RMII_10T(enetIfPtr->deviceNumber, crt_state.speed == kEnetSpeed10M ? kEnetCfgSpeed10M : kEnetCfgSpeed100M);
+    // Compare with previous state
+    if (crt_state.connected != prev_state.connected) {
+      if (crt_state.connected)
+        tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_up, (void*) netif, 1);
+      else
+        tcpip_callback_with_block((tcpip_callback_fn)netif_set_link_down, (void*) netif, 1);
+    }
 
-  //   // TODO: duplex change requires disable/enable of Ethernet interface, to be implemented
+    if (crt_state.speed != prev_state.speed)
+      BW_ENET_RCR_RMII_10T(enetIfPtr->deviceNumber, crt_state.speed == kEnetSpeed10M ? kEnetCfgSpeed10M : kEnetCfgSpeed100M);
 
-  //   prev_state = crt_state;
-  //   osDelay(PHY_TASK_PERIOD_MS);
-  // }
+    // TODO: duplex change requires disable/enable of Ethernet interface, to be implemented
+
+    prev_state = crt_state;
+    osDelay(PHY_TASK_PERIOD_MS);
+  }
 }
+#endif
 
 /**
  * Should be called at the beginning of the program to set up the
@@ -814,11 +771,7 @@ err_t eth_arch_enetif_init(struct netif *netif)
   netif->output = k64f_etharp_output;
   netif->linkoutput = k64f_low_level_output;
 
-  /* CMSIS-RTOS, start tasks */
-
-  /* Allow the PHY task to detect the initial link state and set up the proper flags */
-  // TODO: is this needed anymore? PRobably, but maybe putting it in EthernetInterface.cpp is a better idea
-  osDelay(10);
+  SysTick_Init();
 
   return ERR_OK;
 }
@@ -834,22 +787,73 @@ void eth_arch_disable_interrupts(void) {
   INT_SYS_DisableIRQ(enet_irq_ids[BOARD_DEBUG_ENET_INSTANCE][enetIntMap[kEnetTxfInt]]);
 }
 
-void ENET_Transmit_IRQHandler(void)
-{
-     enet_mac_tx_isr(enetIfHandle);
+///////////////////////////////////////////////////////////////////////////////
+// Interrupt handlers section
+
+void enet_mac_rx_isr(void *enetIfPtr) {
+  struct k64f_enetdata *k64f_enet = &k64f_enetdata;
+  volatile enet_bd_struct_t * bdPtr = (enet_bd_struct_t*)k64f_enet->rx_desc_start_addr;
+  static int idx = 0;
+
+  /* Clear interrupt */
+  enet_hal_clear_interrupt(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetRxFrameInterrupt);
+
+  if ((bdPtr[idx].control & kEnetRxBdEmpty) == 0) {
+    k64f_enetif_input(k64f_enet->netif, idx);
+    idx = (idx + 1) % ENET_RX_RING_LEN;
+  }
 }
 
-void ENET_Receive_IRQHandler(void)
-{
-     enet_mac_rx_isr(enetIfHandle);
+void enet_mac_tx_isr(void *enetIfPtr) {
+  struct k64f_enetdata *k64f_enet = &k64f_enetdata;
+
+  /*Clear interrupt*/
+  enet_hal_clear_interrupt(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetTxFrameInterrupt);
+  k64f_tx_reclaim(k64f_enet);
 }
+
+
+// Simplify interrupt handling as much as possible: all handling (TX/RX/timers) happens in the same handler
+// We'll use the RX interrupt handler for that purpose, because why not
+// TODO: ideally, interrupt priorities will be set up properly for this scenario
 
 #if FSL_FEATURE_ENET_SUPPORT_PTP
+#error Not supported
+// TODO: we don't care about you, evil Ethernet timing interrupt. Nobody loves you.
 void ENET_1588_Timer_IRQHandler(void)
 {
      enet_mac_ts_isr(enetIfHandle);
 }
 #endif
+
+// This one gets called from the SysTick interrupt handler (sys_arch.c)
+void eth_arch_timer_callback(void) {
+    emac_timer_fired = 1;
+    NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+}
+
+void ENET_Transmit_IRQHandler(void) {
+    NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+}
+
+void ENET_Receive_IRQHandler(void) {
+    enet_dev_if_t *enetIfPtr = (enet_dev_if_t *)&enetDevIf[BOARD_DEBUG_ENET_INSTANCE];
+
+    if (enet_hal_get_interrupt_status(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetRxFrameInterrupt))
+        enet_mac_rx_isr(enetIfHandle);
+    if (enet_hal_get_interrupt_status(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetTxFrameInterrupt))
+        enet_mac_tx_isr(enetIfHandle);
+    if (emac_timer_fired) {
+        emac_timer_fired = 0;
+        sys_check_timeouts();
+          // TODO: this will have to be replaced with a proper "PHY task" that can detect changes in link status.
+        if (k64f_phy_state.connected == STATE_UNKNOWN) {
+            k64f_phy_state.connected = 1;
+            netif_set_link_up(k64f_enetdata.netif);
+        }
+     }
+}
+
 /**
  * @}
  */
