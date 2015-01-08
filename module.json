@@ -1,20 +1,32 @@
-
 {
-    "name": "mbed-net-lwip-k64f",
-    "version": "0.0.0",
-    "description": "",
-    "keywords": [
-    ],
-    "author": "name <email@domain.tld>",
+  "name": "mbed-net-lwip-k64f",
+  "version": "0.0.0",
+  "description": "LWIP abstraction layer for k64f ethernet",
+  "keywords": [
+    "mbed",
+    "network",
+    "k64f"
+  ],
+  "author": "Brendan Moran <brendan.moran@arm.com>",
     "repository": {
         "url": "git@github.com:ARMmbed/mbed-net-lwip-k64f.git",
         "type": "git"
     },
     "homepage": "https://github.com/ARMmbed/mbed-net-lwip-k64f",
-    "license": "Apache-2",
-    "dependencies": {
-    },
-    "extraIncludes": ["mbed-net-lwip-k64f"],
-    "targetDependencies": {
+  "licenses": [
+    {
+      "url": "https://spdx.org/licenses/Apache-2.0",
+      "type": "Apache-2.0"
     }
+  ],
+  "extraIncludes": [
+    "mbed-net-lwip-k64f"
+  ],
+  "dependencies": {
+    "mbed": "ARMmbed/mbed-sdk",
+    "mbed-net-lwip" : "ARMmbed/mbed-net-lwip",
+    "mbed-net-eth" : "ARMmbed/mbed-net-eth"
+  },
+  "targetDependencies": {
+  }
 }
