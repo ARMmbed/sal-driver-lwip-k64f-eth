@@ -25,7 +25,7 @@
   "dependencies": {
     "mbed": "ARMmbed/mbed-sdk",
     "mbed-net-lwip" : "ARMmbed/mbed-net-lwip",
-    "mbed-net-eth" : "ARMmbed/mbed-net-eth"
+    "mbed-net-lwip-eth" : "ARMmbed/mbed-net-lwip-eth"
   },
   "targetDependencies": {
   }
