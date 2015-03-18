@@ -23,9 +23,9 @@
     "mbed-net-lwip-k64f"
   ],
   "dependencies": {
-    "mbed": "ARMmbed/mbed-sdk",
-    "mbed-net-lwip" : "ARMmbed/mbed-net-lwip",
-    "mbed-net-lwip-eth" : "ARMmbed/mbed-net-lwip-eth"
+    "mbed": "ARMmbed/mbed-sdk-private",
+    "mbed-net-lwip" : "ARMmbed/mbed-net-lwip#~0.0.1",
+    "mbed-net-lwip-eth" : "ARMmbed/mbed-net-lwip-eth#~0.0.1"
   },
   "targetDependencies": {
   }
