@@ -2,6 +2,7 @@
   "name": "mbed-net-lwip-k64f",
   "version": "0.0.3",
   "description": "LWIP abstraction layer for k64f ethernet",
+  "private": true,
   "keywords": [
     "mbed",
     "network",
@@ -23,9 +24,9 @@
     "mbed-net-lwip-k64f"
   ],
   "dependencies": {
-    "mbed": "ARMmbed/mbed-sdk-private",
-    "mbed-net-lwip": "ARMmbed/mbed-net-lwip#~0.1.1",
-    "mbed-net-lwip-eth": "ARMmbed/mbed-net-lwip-eth#~0.0.2"
+    "mbed": "*",
+    "mbed-net-lwip": "~0.1.1",
+    "mbed-net-lwip-eth": "~0.0.2"
   },
   "targetDependencies": {}
 }
