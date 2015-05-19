@@ -785,7 +785,7 @@ void enet_mac_rx_isr(void *enetIfPtr) {
   /* Clear interrupt */
   enet_hal_clear_interrupt(((enet_dev_if_t *)enetIfPtr)->deviceNumber, kEnetRxFrameInterrupt);
 
-  if ((bdPtr[idx].control & kEnetRxBdEmpty) == 0) {
+  while ((bdPtr[idx].control & kEnetRxBdEmpty) == 0) {
     k64f_enetif_input(k64f_enet->netif, idx);
     idx = (idx + 1) % ENET_RX_RING_LEN;
   }
