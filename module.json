@@ -24,9 +24,8 @@
     "mbed-net-lwip-k64f"
   ],
   "dependencies": {
-    "mbed": "*",
-    "mbed-net-lwip": "~0.1.1",
-    "mbed-net-lwip-eth": "~0.0.2"
+    "mbed-net-lwip": "~0.1.6",
+    "mbed-net-lwip-eth": "~0.0.3"
   },
   "targetDependencies": {}
 }
