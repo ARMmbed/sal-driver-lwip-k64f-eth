@@ -1,5 +1,5 @@
 {
-  "name": "mbed-net-lwip-k64f",
+  "name": "sal-driver-lwip-k64f-eth",
   "version": "0.0.6",
   "description": "LWIP abstraction layer for k64f ethernet",
   "private": true,
@@ -24,8 +24,8 @@
     "mbed-net-lwip-k64f"
   ],
   "dependencies": {
-    "mbed-net-lwip": "~0.1.6",
-    "mbed-net-lwip-eth": "~0.0.3"
+    "sal-stack-lwip": "~0.1.6",
+    "sal-iface-eth": "~0.0.3"
   },
   "targetDependencies": {}
 }
