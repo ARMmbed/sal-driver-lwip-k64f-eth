@@ -1,6 +1,6 @@
 {
   "name": "sal-driver-lwip-k64f-eth",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "LWIP abstraction layer for k64f ethernet",
   "private": true,
   "keywords": [
