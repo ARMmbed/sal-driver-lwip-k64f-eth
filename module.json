@@ -5,7 +5,8 @@
   "keywords": [
     "mbed",
     "network",
-    "k64f"
+    "k64f",
+    "mbed-official"
   ],
   "author": "Brendan Moran <brendan.moran@arm.com>",
   "repository": {
@@ -27,8 +28,8 @@
     "mbed-net-lwip-k64f"
   ],
   "dependencies": {
-    "sal-stack-lwip": "~0.4.0",
-    "sal-iface-eth": "~0.3.0"
+    "sal-stack-lwip": "^1.0.0",
+    "sal-iface-eth": "^1.0.0"
   },
   "targetDependencies": {}
 }
