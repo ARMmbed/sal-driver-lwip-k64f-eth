@@ -29,8 +29,8 @@
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
-#include "eth_arch.h"
-#include "sys_arch.h"
+#include "sal-iface-eth/eth_arch.h"
+#include "sal-stack-lwip/arch/sys_arch.h"
 
 #include "fsl_enet_driver.h"
 #include "fsl_enet_hal.h"
@@ -43,7 +43,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "mbed_interface.h"
+#include "mbed-drivers/mbed_interface.h"
 #include "cmsis.h"
 
 extern IRQn_Type enet_irq_ids[HW_ENET_INSTANCE_COUNT][FSL_FEATURE_ENET_INTERRUPT_COUNT];
