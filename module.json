@@ -25,7 +25,7 @@
     }
   ],
   "extraIncludes": [
-    "mbed-net-lwip-k64f"
+    "sal-driver-lwip-k64f-eth"
   ],
   "dependencies": {
     "sal-stack-lwip": "^1.0.0",
