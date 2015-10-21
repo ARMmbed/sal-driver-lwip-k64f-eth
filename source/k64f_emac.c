@@ -37,7 +37,7 @@
 #include "fsl_device_registers.h"
 #include "fsl_phy_driver.h"
 #include "fsl_interrupt_manager.h"
-#include "k64f_emac_config.h"
+#include "sal-driver-lwip-k64f-eth/k64f_emac_config.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
