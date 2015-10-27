@@ -36,7 +36,7 @@
 #include "fsl_interrupt_manager.h"
 #include <string.h>
 
-#include "sys_arch.h"
+#include "sal-stack-lwip/arch/sys_arch.h"
 
 /*******************************************************************************
  * Variables

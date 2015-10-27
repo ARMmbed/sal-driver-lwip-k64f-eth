@@ -29,21 +29,21 @@
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
-#include "eth_arch.h"
-#include "sys_arch.h"
+#include "sal-iface-eth/eth_arch.h"
+#include "sal-stack-lwip/arch/sys_arch.h"
 
 #include "fsl_enet_driver.h"
 #include "fsl_enet_hal.h"
 #include "fsl_device_registers.h"
 #include "fsl_phy_driver.h"
 #include "fsl_interrupt_manager.h"
-#include "k64f_emac_config.h"
+#include "sal-driver-lwip-k64f-eth/k64f_emac_config.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "mbed_interface.h"
+#include "mbed-drivers/mbed_interface.h"
 #include "cmsis.h"
 
 extern IRQn_Type enet_irq_ids[HW_ENET_INSTANCE_COUNT][FSL_FEATURE_ENET_INTERRUPT_COUNT];
