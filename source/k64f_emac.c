@@ -482,14 +482,8 @@ void k64f_enetif_input(struct netif *netif, int idx)
     case ETHTYPE_PPPOEDISC:
     case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
-      /* full packet send to tcpip_thread to process */
-      if (netif->input(p, netif) != ERR_OK) {
-        LWIP_DEBUGF(NETIF_DEBUG, ("k64f_enetif_input: IP input error\n"));
-        /* Free buffer */
-        pbuf_free(p);
-      }
-      break;
-
+        defer_input(p, netif);
+        break;
     default:
       /* Return buffer */
       pbuf_free(p);

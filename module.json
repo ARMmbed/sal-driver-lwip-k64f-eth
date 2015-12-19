@@ -29,7 +29,8 @@
   ],
   "dependencies": {
     "sal-stack-lwip": "^1.0.0",
-    "sal-iface-eth": "^1.0.0"
+    "sal-iface-eth": "^1.0.0",
+    "minar": "^1.0.1"
   },
   "targetDependencies": {}
 }
