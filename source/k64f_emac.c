@@ -482,8 +482,14 @@ void k64f_enetif_input(struct netif *netif, int idx)
     case ETHTYPE_PPPOEDISC:
     case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
-        defer_input(p, netif);
-        break;
+      /* full packet send to tcpip_thread to process */
+      if (netif->input(p, netif) != ERR_OK) {
+        LWIP_DEBUGF(NETIF_DEBUG, ("k64f_enetif_input: IP input error\n"));
+        /* Free buffer */
+        pbuf_free(p);
+      }
+      break;
+
     default:
       /* Return buffer */
       pbuf_free(p);
@@ -831,10 +837,10 @@ void ENET_Receive_IRQHandler(void) {
           // TODO: this will have to be replaced with a proper "PHY task" that can detect changes in link status.
         if (k64f_phy_state.connected == STATE_UNKNOWN) {
             k64f_phy_state.connected = 1;
-            netif_set_link_up(k64f_enetdata.netif);
+            defer_link(k64f_enetdata.netif);
         }
         emac_timer_fired = 0;
-        sys_check_timeouts();
+        // sys_check_timeouts();
      }
 }
 

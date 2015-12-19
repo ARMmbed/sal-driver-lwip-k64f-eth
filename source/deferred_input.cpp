@@ -36,3 +36,9 @@ void defer_input(struct pbuf *p, struct netif *netif)
         mbed::util::FunctionPointer2<void, struct pbuf *, struct netif *>(call_input)
           .bind(p, netif));
 }
+
+void defer_link(struct netif *netif)
+{
+    minar::Scheduler::postCallback(
+        mbed::util::FunctionPointer1<void, struct netif* >(netif_set_link_up).bind(netif) );
+}

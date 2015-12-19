@@ -20,6 +20,13 @@
 #define SAL_DRIVER_LWIP_K64F_SOURCE_DEFER_INPUT_H
 #include "lwip/pbuf.h"
 #include "netif/etharp.h"
-extern "C"
+#ifdef __cplusplus
+extern "C" {
+#endif
 void defer_input(struct pbuf *p, struct netif *netif);
+void defer_link(struct netif *netif);
+#ifdef __cplusplus
+}
+#endif
+
 #endif // SAL_DRIVER_LWIP_K64F_SOURCE_DEFER_INPUT_H
