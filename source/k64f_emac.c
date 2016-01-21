@@ -26,6 +26,11 @@
 #include "lwip/tcpip.h"
 #include "lwip/dhcp.h"
 #include "lwip/timers.h"
+/**
+ * NOTE: remove when deferred packet processing is enabled
+ */
+#include "lwip/tcp.h"
+
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
@@ -53,8 +58,15 @@ extern void *enetIfHandle;
 // Fow now, all interrupt handling happens inside one single handler, so we need to figure
 // out what actually triggered the interrupt.
 
-static volatile uint8_t emac_timer_fired;
+/**
+ * NOTE: change to static when deferred packet processing is enabled
+ */
+volatile uint8_t emac_timer_fired;
 volatile uint8_t allow_net_callbacks;
+/**
+ * NOTE: remove when deferred packet processing is enabled
+ */
+struct pbuf * volatile emac_tcp_push_pcb = NULL;
 
 /********************************************************************************
  * Internal data
@@ -818,12 +830,12 @@ void ENET_1588_Timer_IRQHandler(void)
 void eth_arch_timer_callback(void) {
     if (allow_net_callbacks) {
         emac_timer_fired = 1;
-        NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+        vIRQ_SetPendingIRQ(ENET_Receive_IRQn);
     }
 }
 
 void ENET_Transmit_IRQHandler(void) {
-    NVIC_SetPendingIRQ(ENET_Receive_IRQn);
+    vIRQ_SetPendingIRQ(ENET_Receive_IRQn);
 }
 
 void ENET_Receive_IRQHandler(void) {
@@ -841,6 +853,13 @@ void ENET_Receive_IRQHandler(void) {
         }
         emac_timer_fired = 0;
         sys_check_timeouts();
+     }
+     /**
+      * NOTE: remove when deferred packet processing is enabled
+      */
+     if (emac_tcp_push_pcb) {
+         tcp_output((struct tcp_pcb *)emac_tcp_push_pcb);
+         emac_tcp_push_pcb = NULL;
      }
 }
 
