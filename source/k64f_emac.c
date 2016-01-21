@@ -849,10 +849,10 @@ void ENET_Receive_IRQHandler(void) {
           // TODO: this will have to be replaced with a proper "PHY task" that can detect changes in link status.
         if (k64f_phy_state.connected == STATE_UNKNOWN) {
             k64f_phy_state.connected = 1;
-            netif_set_link_up(k64f_enetdata.netif);
+            defer_link(k64f_enetdata.netif);
         }
         emac_timer_fired = 0;
-        sys_check_timeouts();
+        // sys_check_timeouts();
      }
      /**
       * NOTE: remove when deferred packet processing is enabled
