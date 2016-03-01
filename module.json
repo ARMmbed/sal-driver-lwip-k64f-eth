@@ -1,6 +1,6 @@
 {
   "name": "sal-driver-lwip-k64f-eth",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "LWIP abstraction layer for k64f ethernet",
   "keywords": [
     "mbed",
