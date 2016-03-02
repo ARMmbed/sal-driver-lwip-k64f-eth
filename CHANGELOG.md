@@ -2,7 +2,9 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-##[Unreleased]
+## [Unreleased]
+### Reverted
+- [v1.0.4]
 
 ## [v1.0.4]
 ### Fixed
