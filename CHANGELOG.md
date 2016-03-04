@@ -4,6 +4,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Restored
+- [v1.0.4]
+### Fixed
+- Replaced `pbuf_alloc` with `memp_malloc` in `k64f_low_level_output`, which will fix the problem that required [v1.0.4] to be reverted.
+
 ## [v1.0.5]
 ### Reverted
 - [v1.0.4]
