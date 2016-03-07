@@ -4,6 +4,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+##[v1.0.6]
 ### Restored
 - [v1.0.4]
 ### Fixed
@@ -22,7 +23,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 * Infrastructure to allow pushing TCP protocol buffers from IRQ context
 
-[Unreleased]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.5...HEAD
+[Unreleased]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.6...HEAD
+[v1.0.6]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.5...v1.0.6
 [v1.0.5]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.4...v1.0.5
 [v1.0.4]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.3...v1.0.4
 [v1.0.3]: https://github.com/ARMmbed/sal-driver-lwip-k64f-eth/compare/v1.0.2...v1.0.3
