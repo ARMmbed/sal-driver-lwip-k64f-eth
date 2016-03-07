@@ -291,7 +291,7 @@ static void k64f_tx_reclaim(struct k64f_enetdata *k64f_enet)
   i = k64f_enet->tx_consume_index;
   while(i != k64f_enet->tx_produce_index && !(bdPtr[i].control & kEnetTxBdReady)) {
       if (k64f_enet->txb_aligned[i]) {
-        free(k64f_enet->txb_aligned[i]);
+        memp_free(MEMP_PBUF_POOL, k64f_enet->txb_aligned[i]);
         k64f_enet->txb_aligned[i] = NULL;
       } else if (k64f_enet->txb[i]) {
         pbuf_free(k64f_enet->txb[i]);
@@ -583,7 +583,7 @@ static err_t k64f_low_level_output(struct netif *netif, struct pbuf *p)
       break;
   if (q != NULL) {
     // Allocate properly aligned buffer
-    psend = (uint8_t*)malloc(p->tot_len);
+    psend = (uint8_t*)memp_malloc(MEMP_PBUF_POOL);
     if (NULL == psend)
       return ERR_MEM;
     LWIP_ASSERT("k64f_low_level_output: buffer not properly aligned", ((u32_t)psend & (TX_BUF_ALIGNMENT - 1)) == 0);
